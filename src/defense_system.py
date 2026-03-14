@@ -18,6 +18,8 @@ class LurRenJiaDefenseSystem:
         self.trained = False
         self.baseline = None
         self.event_history = []  # Store all security events
+        self.threat_patterns = {}  # Custom threat patterns dictionary
+        self._initialize_threat_patterns()  # Load default threat patterns
         self.statistics = {
             'total_requests': 0,
             'blocked_requests': 0,
@@ -39,6 +41,79 @@ class LurRenJiaDefenseSystem:
         self.model.fit(self.baseline)
         self.trained = True
         print(f"✅ AI baseline trained on {len(normal_data)} normal traffic samples")
+    
+    def _initialize_threat_patterns(self):
+        """
+        Initialize default threat patterns with regex rules
+        
+        This method can be called to reset to default patterns or
+        to combine with custom patterns
+        """
+        import re
+        
+        self.threat_patterns = {
+            'SQL_INJECTION': [
+                r"(?i)(drop|delete|insert|truncate|exec|execute|union|select).*(\"|'|;)",
+                r"(?i)(-{2}|#|/\*|\*/|xp_|sp_)",
+                r"(?i)(union.*select|select.*from|where.*=)",
+                r"(?i)('.*or.*1.*=.*1|'.*or.*'.*=.*')",
+            ],
+            'XSS': [
+                r"(?i)(<script|javascript:)",
+                r"(?i)(onerror|onload|onclick|onmouseover)=",
+                r"(?i)(<iframe|<img.*src)",
+                r"(?i)(eval\(|alert\(|prompt\()",
+            ],
+            'XSS_ENCODED': [
+                r"(%2e%2e%2f|%252e|%3cscript|%3ciframe|%3c)",
+                r"(&#x|&#[0-9])",
+                r"(\\x|\\u00)",
+            ],
+            'COMMAND_INJECTION': [
+                r"(?i)(cat\s+/etc|/bin/bash|/bin/sh|bash\s+-i)",
+                r"(?i)(/dev/tcp|nc\s+-|ncat)",
+                r"(?i)(curl\|bash|wget\|python|curl\|python)",
+                r"(?i)(whoami|id\s+|uname\s+-)",
+            ],
+            'RCE': [
+                r"(?i)(exec|system|passthru|shell_exec|backtick)",
+                r"(?i)(\$_\[|getenv|putenv)",
+                r"(?i)(os\.system|subprocess|popen)",
+            ],
+            'PATH_TRAVERSAL': [
+                r"(\.\./|\.\.\\|/etc/passwd|/etc/shadow|win\.ini|boot\.ini)",
+                r"(%2e%2e/|%252e%252e)",
+            ],
+            'MALWARE': [
+                r"(?i)(\.(exe|dll|bat|com|scr|vbs|js|zip|rar)\.?)",
+                r"(?i)(trojan|ransomware|backdoor|worm|virus)",
+            ],
+        }
+    
+    def add_custom_threat(self, threat_name, patterns):
+        """
+        Add or update custom threat patterns
+        
+        Args:
+            threat_name: Name of the threat (e.g., 'custom_threat')
+            patterns: List of regex patterns to match this threat
+            
+        Example:
+            system.add_custom_threat('custom_threat', [
+                r'你的正則表達式1',
+                r'你的正則表達式2',
+            ])
+        """
+        if not isinstance(patterns, list):
+            patterns = [patterns]
+        
+        self.threat_patterns[threat_name] = patterns
+        print(f"✅ 自定義威脅模式已添加: {threat_name}")
+        print(f"   📊 模式數量: {len(patterns)}")
+    
+    def get_threat_patterns(self):
+        """Get all current threat patterns"""
+        return self.threat_patterns.copy()
     
     def _detect_threat_type(self, payload, features):
         """Detect the type of threat in the payload with enhanced detection"""

