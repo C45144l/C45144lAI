@@ -42,6 +42,114 @@ class LurRenJiaDefenseSystem:
         self.trained = True
         print(f"✅ AI baseline trained on {len(normal_data)} normal traffic samples")
     
+    def set_model_params(self, **params):
+        """
+        Set model parameters and retrain if baseline exists
+        
+        Args:
+            **params: Model parameters to set (n_estimators, contamination, etc.)
+                      Parameters are passed to IsolationForest.set_params()
+        
+        Returns:
+            Dictionary with new parameters
+            
+        Example:
+            system.set_model_params(n_estimators=200, contamination=0.15)
+        """
+        self.model.set_params(**params)
+        print(f"✅ 模型參數已更新:")
+        for param_name, param_value in params.items():
+            print(f"   • {param_name}: {param_value}")
+        
+        # Retrain if baseline exists
+        if self.baseline is not None:
+            print("🔄 重新訓練模型...")
+            self.model.fit(self.baseline)
+            self.trained = True
+            print("✅ 模型重新訓練完成")
+        
+        return self.get_model_params()
+    
+    def get_model_params(self):
+        """
+        Get current model parameters
+        
+        Returns:
+            Dictionary of current model parameters
+        """
+        params = self.model.get_params()
+        return params
+    
+    def tune_ai_model(self, mode="balanced"):
+        """
+        Quick tuning presets for common use cases
+        
+        Args:
+            mode: Tuning preset
+                - 'fast': Faster detection, less accurate (n_estimators=50)
+                - 'balanced': Default mode (n_estimators=100)
+                - 'accurate': More accurate, slower (n_estimators=200)
+                - 'sensitive': Detect more anomalies (contamination=0.15)
+                - 'strict': Fewer false positives (contamination=0.05)
+        
+        Example:
+            system.tune_ai_model('accurate')
+        """
+        tuning_configs = {
+            'fast': {'n_estimators': 50, 'contamination': 0.1},
+            'balanced': {'n_estimators': 100, 'contamination': 0.1},
+            'accurate': {'n_estimators': 200, 'contamination': 0.1},
+            'sensitive': {'n_estimators': 100, 'contamination': 0.15},
+            'strict': {'n_estimators': 100, 'contamination': 0.05},
+        }
+        
+        if mode not in tuning_configs:
+            raise ValueError(f"Unknown tuning mode: {mode}. Available: {list(tuning_configs.keys())}")
+        
+        config = tuning_configs[mode]
+        print(f"🎯 應用 '{mode}' 模式調整...")
+        
+        return self.set_model_params(**config)
+    
+    def get_model_stats(self):
+        """
+        Get current model statistics and configuration
+        
+        Returns:
+            Dictionary containing model stats
+        """
+        params = self.get_model_params()
+        stats = {
+            'model_type': self.model.__class__.__name__,
+            'trained': self.trained,
+            'baseline_size': len(self.baseline) if self.baseline is not None else 0,
+            'n_estimators': params.get('n_estimators'),
+            'contamination': params.get('contamination'),
+            'random_state': params.get('random_state'),
+            'n_jobs': params.get('n_jobs', 1),  # Default is 1 if not set
+            'max_samples': params.get('max_samples'),
+            'max_features': params.get('max_features'),
+        }
+        return stats
+    
+    def print_model_info(self):
+        """Print current model information and statistics"""
+        stats = self.get_model_stats()
+        print("\n" + "="*60)
+        print("🤖 AI 模型信息")
+        print("="*60)
+        print(f"模型類型: {stats['model_type']}")
+        print(f"訓練狀態: {'✅ 已訓練' if stats['trained'] else '❌ 未訓練'}")
+        print(f"基線數據: {stats['baseline_size']} 樣本")
+        print(f"\n參數配置:")
+        print(f"  • n_estimators: {stats['n_estimators']}")
+        print(f"  • contamination: {stats['contamination']}")
+        print(f"  • random_state: {stats['random_state']}")
+        print(f"  • n_jobs: {stats['n_jobs']}")
+        print(f"  • max_samples: {stats['max_samples']}")
+        print(f"  • max_features: {stats['max_features']}")
+        print("="*60 + "\n")
+    
     def _initialize_threat_patterns(self):
         """
         Initialize default threat patterns with regex rules
