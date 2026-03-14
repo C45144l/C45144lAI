@@ -223,10 +223,105 @@ class LurRenJiaDefenseSystem:
         """Get all current threat patterns"""
         return self.threat_patterns.copy()
     
+    def rule_based_check(self, payload):
+        """
+        Perform rule-based threat detection using custom threat patterns
+        
+        Args:
+            payload: Request payload or URL to check
+            
+        Returns:
+            Tuple: (is_threat: bool, threat_name: str, matched_patterns: list)
+                - is_threat: True if any custom pattern matches
+                - threat_name: Name of the threat category that matched
+                - matched_patterns: List of regex patterns that matched
+        
+        Examples:
+            system.threat_patterns['custom_attacks'] = [
+                r'vulnerable_endpoint',
+                r'admin_panel',
+                r'backup\.sql',
+            ]
+            
+            is_threat, threat_name, patterns = system.rule_based_check('GET /admin_panel')
+            # Returns: (True, 'custom_attacks', [r'admin_panel'])
+        """
+        import re
+        
+        matched_threats = {}  # threat_name -> [matched_patterns]
+        
+        # Check each threat category
+        for threat_name, patterns in self.threat_patterns.items():
+            if not isinstance(patterns, list):
+                patterns = [patterns]
+            
+            matched_in_threat = []
+            
+            # Check each pattern against the payload
+            for pattern in patterns:
+                try:
+                    if re.search(pattern, payload, re.IGNORECASE):
+                        matched_in_threat.append(pattern)
+                except re.error:
+                    # Skip invalid regex patterns
+                    continue
+            
+            if matched_in_threat:
+                matched_threats[threat_name] = matched_in_threat
+        
+        # Return results
+        if matched_threats:
+            # Return the first matched threat (threat categories ordered by threat_patterns dict)
+            threat_name = next(iter(matched_threats.keys()))
+            matched_patterns = matched_threats[threat_name]
+            return (True, threat_name, matched_patterns)
+        
+        return (False, "NONE", [])
+    
+    def batch_rule_check(self, payloads):
+        """
+        Perform rule-based detection on multiple payloads
+        
+        Args:
+            payloads: List of payloads to check
+            
+        Returns:
+            List of detection results for each payload
+            
+        Example:
+            results = system.batch_rule_check([
+                'GET /admin_panel',
+                'POST /api/users',
+                'GET /backup.sql'
+            ])
+        """
+        results = []
+        for payload in payloads:
+            is_threat, threat_name, patterns = self.rule_based_check(payload)
+            results.append({
+                'payload': payload,
+                'is_threat': is_threat,
+                'threat_type': threat_name,
+                'matched_patterns': patterns
+            })
+        return results
+    
+    def get_threat_patterns(self):
+        """Get all current threat patterns"""
+        return self.threat_patterns.copy()
+    
     def _detect_threat_type(self, payload, features):
         """Detect the type of threat in the payload with enhanced detection"""
         payload_lower = payload.lower()
         threat_scores = {}
+        
+        # ===== 優先級 0: 規則檢測 (自定義威脅模式) =====
+        # 檢查自定義規則是否匹配
+        is_custom_threat, custom_threat_name, matched_patterns = self.rule_based_check(payload)
+        
+        if is_custom_threat:
+            # 自定義規則匹配優先級最高 - 直接返回自定義威脅
+            return custom_threat_name
         
         # ===== 危險程度 1: 關鍵威脅 (SQL + RCE + APT) =====
         
