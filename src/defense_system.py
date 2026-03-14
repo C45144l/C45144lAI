@@ -17,6 +17,7 @@ class LurRenJiaDefenseSystem:
         self.model = IsolationForest(contamination=contamination, random_state=42)
         self.trained = False
         self.baseline = None
+        self.event_history = []  # Store all security events
         self.statistics = {
             'total_requests': 0,
             'blocked_requests': 0,
@@ -243,6 +244,17 @@ class LurRenJiaDefenseSystem:
             "severity": self._get_severity_level(threat_type, risk_score)
         }
         
+        # Record event to history
+        from datetime import datetime
+        self.event_history.append({
+            "timestamp": datetime.now().isoformat(),
+            "ip": ip,
+            "action": action,
+            "threat_type": threat_type,
+            "risk_score": risk_score,
+            "payload": payload[:100]  # Store first 100 chars of payload
+        })
+        
         return result
     
     def _get_severity_level(self, threat_type, risk_score):
@@ -297,3 +309,17 @@ class LurRenJiaDefenseSystem:
             'block_rate': block_rate,
             'anomalies_detected': self.statistics['anomalies_detected']
         }
+    
+    def get_event_history(self, limit=None):
+        """
+        Get event history (all recorded security events)
+        
+        Args:
+            limit: Maximum number of events to return (None for all)
+            
+        Returns:
+            List of events, most recent first
+        """
+        if limit:
+            return self.event_history[-limit:]
+        return self.event_history
