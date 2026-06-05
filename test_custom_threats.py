@@ -4,9 +4,16 @@ Test script for custom threat pattern functionality
 演示自定義威脅模式功能
 """
 
+import pytest
 import numpy as np
 import re
 from src.defense_system import LurRenJiaDefenseSystem
+
+
+@pytest.fixture
+def system():
+    return LurRenJiaDefenseSystem()
+
 
 def test_default_threat_patterns():
     """Test that default threat patterns are initialized"""
