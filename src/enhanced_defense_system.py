@@ -1,86 +1,156 @@
 """
 增強型防禦系統 - 行業特定威脅檢測
 Enhanced Defense System with Industry-Specific Threat Detection
+
+Features:
+- Industry-specific threat patterns
+- Detailed scoring with multiple dimensions
+- Advanced analytics and reporting
+- Threat trend analysis
 """
 
 import numpy as np
 import logging
+from typing import Dict, List, Optional, Any, Union
+from datetime import datetime
+import threading
+
 from src.defense_system import LurRenJiaDefenseSystem
 
 
 class EnhancedDefenseSystem(LurRenJiaDefenseSystem):
     """增強型防禦系統 - 添加自定義規則與行業特定威脅檢測"""
     
-    def __init__(self, *args, **kwargs):
-        """初始化增強型防禦系統"""
+    def __init__(self, *args, enable_analytics: bool = True, **kwargs):
+        """
+        初始化增強型防禦系統
+        
+        Args:
+            enable_analytics: Enable detailed threat analytics
+            *args, **kwargs: Arguments passed to parent class
+        """
         super().__init__(*args, **kwargs)
+        
+        self.enable_analytics = enable_analytics
+        self.threat_analytics: Dict[str, int] = {}  # Track threat frequencies
+        self._analytics_lock = threading.Lock() if enable_analytics else None
+        self._industry_specific_rules_added = False
+        
         self._add_industry_specific_rules()
     
-    def _add_industry_specific_rules(self):
+    def _add_industry_specific_rules(self) -> None:
         """添加特定行業的威脅規則"""
         
-        # 金融行業特定威脅
+        # 金融行業特定威脅 (銀行、支付、證券)
         self.threat_patterns['financial_threats'] = [
-            r'credit_card',
-            r'bank_account',
-            r'routing_number',
-            r'swift_code',
-            r'iban',
-            r'account_number',
+            'credit_card',
+            r'(?i)(credit_card|credit card)',
+            r'(?i)(bank_account|bank account)',
+            r'(?i)(routing_number|routing number)',
+            'swift_code',
+            r'(?i)(swift_code|swift code|swiftcode)',
+            r'(?i)iban',
+            r'(?i)(account_number|account number)',
+            r'(?i)(cvv|cvc|cvv2)',
+            r'(?i)(pan|primary account number)',
         ]
         
-        # 醫療行業特定威脅
+        # 醫療行業特定威脅 (PHI)
         self.threat_patterns['healthcare_threats'] = [
-            r'patient_id',
-            r'medical_record',
-            r'prescription',
-            r'hipaa',
-            r'protected_health',
-            r'diagnosis',
+            'patient_id',
+            r'(?i)(patient_id|patient id|mrn)',
+            r'(?i)(medical_record|medical record|health record)',
+            r'(?i)prescription',
+            'hipaa',
+            r'(?i)(hipaa|hipaa violation)',
+            r'(?i)(protected_health|protected health information)',
+            r'(?i)diagnosis',
+            r'(?i)(dob|date of birth)',
+            r'(?i)(ssn|social security)',
         ]
         
-        # 政府機構特定威脅
+        # 政府機構特定威脅 (分類信息)
         self.threat_patterns['government_threats'] = [
-            r'classified',
-            r'top_secret',
-            r'ssn',  # 社會安全號
-            r'passport',
-            r'national_id',
-            r'confidential',
+            'classified',
+            r'(?i)classified',
+            r'(?i)(top_secret|top secret)',
+            'ssn',
+            r'(?i)(ssn|social security number)',
+            r'(?i)(passport|passport number)',
+            r'(?i)(national_id|national id)',
+            r'(?i)confidential',
+            r'(?i)(state secret|official secret)',
+            r'(?i)(clearance level|security clearance)',
         ]
         
-        # 加密貨幣交易所特定威脅
+        # 加密貨幣交易所特定威脅 (私鑰洩露)
         self.threat_patterns['crypto_threats'] = [
-            r'private_key',
-            r'seed_phrase',
-            r'wallet_address',
-            r'cryptocurrency',
-            r'bitcoin',
-            r'ethereum',
-            r'mnemonic',
+            'private_key',
+            r'(?i)(private_key|private key)',
+            'seed_phrase',
+            r'(?i)(seed_phrase|seed phrase|recovery phrase)',
+            r'(?i)(wallet_address|wallet address)',
+            r'(?i)cryptocurrency',
+            r'(?i)bitcoin',
+            r'(?i)ethereum',
+            r'(?i)mnemonic',
+            r'0x[a-fA-F0-9]{40}',  # Ethereum address
+            r'1[a-zA-Z0-9]{25,34}|3[a-zA-Z0-9]{25,34}',  # Bitcoin address
         ]
         
-        self.logger.info("✅ 已載入特定行業威脅規則 (4 個行業特定威脅類別)")
+        # 智慧財產權 (源代碼、商業機密)
+        self.threat_patterns['intellectual_property'] = [
+            r'(?i)(source code|source_code)',
+            r'(?i)(trade secret|trade_secret)',
+            r'(?i)(proprietary|proprietary code)',
+            r'(?i)(patent|patent application)',
+            r'(?i)(api_key|api key)',
+            r'(?i)(database password|db password)',
+            r'(?i)(ssh key|rsa key)',
+        ]
+        
+        self._industry_specific_rules_added = True
+        self.logger.info(f"✅ 已載入特定行業威脅規則 ({len(self.threat_patterns)-8} 個通用 + 5 個行業特定類別)")
     
-    def add_custom_pattern(self, category: str, patterns: list):
+    def add_custom_pattern(self, category: str, patterns: Union[str, List[str]]) -> None:
         """
         動態添加自定義威脅模式
         
         Args:
             category: 威脅類別名稱
-            patterns: 正則表達式模式列表
+            patterns: 正則表達式模式或模式列表
+            
+        Raises:
+            ValueError: If patterns is invalid type
         """
-        if category not in self.threat_patterns:
-            self.threat_patterns[category] = []
+        if not isinstance(patterns, (str, list)):
+            raise ValueError(f"Patterns must be str or list, got {type(patterns)}")
         
-        # 確保是列表
+        # Ensure patterns is a list
         if isinstance(patterns, str):
             patterns = [patterns]
         
+        if category not in self.threat_patterns:
+            self.threat_patterns[category] = []
+        
+        # Validate each pattern
+        import re
+        for pattern in patterns:
+            try:
+                re.compile(pattern)  # Test compilation
+            except re.error as e:
+                self.logger.error(f"❌ 無效的正則表達式: {pattern} - {str(e)}")
+                raise ValueError(f"Invalid regex pattern: {pattern}")
+        
         self.threat_patterns[category].extend(patterns)
+        
+        # Clear cache
+        if self.enable_caching:
+            self._cache.clear()
+        
         self.logger.info(f"✅ 已添加 {len(patterns)} 個 '{category}' 規則 (總計: {len(self.threat_patterns[category])} 個)")
     
-    def analyze_with_scoring(self, ip: str, payload: str, traffic_features: np.ndarray):
+    def analyze_with_scoring(self, ip: str, payload: str, traffic_features: Union[List, np.ndarray]) -> Dict[str, Any]:
         """
         增強版分析 - 返回詳細評分
         
@@ -90,29 +160,32 @@ class EnhancedDefenseSystem(LurRenJiaDefenseSystem):
             traffic_features: 流量特徵 [size, latency]
         
         Returns:
-            包含詳細評分的分析結果
+            包含詳細評分和多維度分析的結果字典
         """
         # 執行標準分析
         result = self.analyze_incoming_traffic(ip, payload, traffic_features)
         
         # 驗證輸入
-        if isinstance(traffic_features, list):
-            traffic_features = np.array(traffic_features)
+        traffic_features = np.asarray(traffic_features)
+        if traffic_features.ndim == 1:
+            traffic_features = traffic_features.reshape(1, -1)
         
-        # 計算詳細評分
+        # 計算詳細評分 - 所有分數都規範化到 0-1 範圍內
         detailed_score = {
             'base_risk': float(result['risk_score']),
-            'payload_complexity': min(len(payload) / 1000, 1.0),  # 正規化到 0-1
-            'feature_anomaly': min(float(traffic_features.std()) / 100, 1.0) if len(traffic_features) > 0 else 0.0,  # 正規化
+            'payload_complexity': self._normalize_score(min(len(payload) / 100, 10)),
+            'feature_anomaly': self._normalize_score(
+                float(traffic_features[0].std()) if len(traffic_features[0]) > 0 else 0.0
+            ),
             'threat_severity': self._calculate_severity(result['threat_type'])
         }
         
         # 加權計算風險
         weights = {
             'base_risk': 0.4,
-            'payload_complexity': 0.2,
-            'feature_anomaly': 0.2,
-            'threat_severity': 0.2
+            'payload_complexity': 0.15,
+            'feature_anomaly': 0.15,
+            'threat_severity': 0.3
         }
         
         weighted_risk = sum(
@@ -123,8 +196,29 @@ class EnhancedDefenseSystem(LurRenJiaDefenseSystem):
         result['detailed_scores'] = detailed_score
         result['weighted_risk_score'] = min(weighted_risk, 1.0)
         result['risk_breakdown'] = weights
+        result['analysis_timestamp'] = datetime.now().isoformat()
+        
+        # Track threat analytics
+        if self.enable_analytics:
+            self._track_threat(result['threat_type'])
         
         return result
+    
+    def _normalize_score(self, value: float) -> float:
+        """
+        將任意分數正規化到 0-1 範圍
+        使用平滑的比率映射函數，以便 0 對應 0
+        
+        Args:
+            value: 原始分數
+        
+        Returns:
+            正規化分數 (0-1)
+        """
+        if value <= 0:
+            return 0.0
+        normalized = value / (1.0 + abs(value))
+        return float(np.clip(normalized, 0.0, 1.0))
     
     def _calculate_severity(self, threat_type: str) -> float:
         """
@@ -138,23 +232,37 @@ class EnhancedDefenseSystem(LurRenJiaDefenseSystem):
         """
         severity_map = {
             'SQL_INJECTION': 0.95,
-            'XSS': 0.85,
             'COMMAND_INJECTION': 0.99,
+            'RCE': 0.99,
+            'XSS': 0.85,
+            'XSS_ENCODED': 0.78,
             'PATH_TRAVERSAL': 0.80,
             'MALWARE': 0.90,
             'APT_EXFILTRATION': 0.98,
-            'BRUTE_FORCE': 0.75,
+            'REVERSE_SHELL': 0.97,
+            'BRUTE_FORCE': 0.65,
+            'MULTI_VECTOR_ATTACK': 0.96,
             'financial_threats': 0.92,
             'healthcare_threats': 0.94,
             'government_threats': 0.99,
             'crypto_threats': 0.91,
+            'intellectual_property': 0.93,
+            'ABNORMAL_TRAFFIC': 0.50,
             'UNKNOWN': 0.0,
-            'NO_THREAT': 0.0
+            'NONE': 0.0
         }
         return severity_map.get(threat_type, 0.5)
     
-    def batch_analyze_with_scoring(self, payloads: list, ip: str = "127.0.0.1", 
-                                   traffic_features: np.ndarray = None):
+    def _track_threat(self, threat_type: str) -> None:
+        """Track threat occurrences for analytics"""
+        if self._analytics_lock:
+            with self._analytics_lock:
+                self.threat_analytics[threat_type] = self.threat_analytics.get(threat_type, 0) + 1
+        else:
+            self.threat_analytics[threat_type] = self.threat_analytics.get(threat_type, 0) + 1
+    
+    def batch_analyze_with_scoring(self, payloads: List[str], ip: str = "127.0.0.1", 
+                                   traffic_features: Optional[np.ndarray] = None) -> List[Dict[str, Any]]:
         """
         批量分析帶詳細評分
         
@@ -180,8 +288,13 @@ class EnhancedDefenseSystem(LurRenJiaDefenseSystem):
         
         return results
     
-    def get_threat_statistics(self):
-        """獲取威脅統計信息"""
+    def get_threat_statistics(self) -> Dict[str, Any]:
+        """
+        獲取威脅統計信息
+        
+        Returns:
+            包含詳細威脅統計的字典
+        """
         stats = self.statistics.copy()
         stats['threat_categories'] = list(self.threat_patterns.keys())
         stats['total_patterns'] = sum(
@@ -189,41 +302,88 @@ class EnhancedDefenseSystem(LurRenJiaDefenseSystem):
             for patterns in self.threat_patterns.values()
         )
         
+        if self.enable_analytics:
+            stats['threat_distribution'] = self.threat_analytics.copy()
+            stats['most_detected'] = max(self.threat_analytics, key=self.threat_analytics.get) if self.threat_analytics else None
+        
         if stats['total_requests'] > 0:
             stats['block_rate'] = (stats['blocked_requests'] / stats['total_requests']) * 100
             stats['anomaly_rate'] = (stats['anomalies_detected'] / stats['total_requests']) * 100
+        else:
+            stats['block_rate'] = 0.0
+            stats['anomaly_rate'] = 0.0
         
         return stats
     
-    def print_system_info(self):
-        """打印系統信息"""
-        print("\n" + "="*60)
-        print("🔐 增強型防禦系統信息")
-        print("="*60)
-        print(f"類名: {self.__class__.__name__}")
-        print(f"基類: {self.__class__.__bases__[0].__name__}")
-        print(f"\n📊 威脅檢測:")
-        print(f"  - 行業特定威脅類別: {len(self.threat_patterns)}")
+    def get_industry_threat_report(self) -> Dict[str, Dict[str, Any]]:
+        """
+        生成按行業分類的威脅報告
         
-        for category, patterns in self.threat_patterns.items():
+        Returns:
+            按行業分類的威脅統計報告
+        """
+        industry_categories = [
+            'financial_threats',
+            'healthcare_threats',
+            'government_threats',
+            'crypto_threats',
+            'intellectual_property'
+        ]
+        
+        report = {}
+        for category in industry_categories:
+            report[category] = {
+                'count': self.threat_analytics.get(category, 0),
+                'patterns': len(self.threat_patterns.get(category, [])),
+                'total_reports': sum(
+                    1 for event in self.event_history 
+                    if event['threat_type'] == category
+                )
+            }
+        
+        return report
+    
+    def print_system_info(self) -> None:
+        """打印詳細的系統信息"""
+        print("\n" + "="*70)
+        print("🔐 增強型防禦系統 - 詳細信息")
+        print("="*70)
+        print(f"系統類名: {self.__class__.__name__}")
+        print(f"基類: {self.__class__.__bases__[0].__name__}")
+        print(f"\n📋 業務配置:")
+        print(f"  • 分析引擎: {'✅ 啟用' if self.enable_analytics else '❌ 禁用'}")
+        print(f"  • 行業規則: {'✅ 已載入' if self._industry_specific_rules_added else '❌ 未載入'}")
+        
+        print(f"\n📊 威脅檢測:")
+        print(f"  • 總威脅類別: {len(self.threat_patterns)}")
+        print(f"  • 總檢測規則: {sum(len(patterns) if isinstance(patterns, list) else 1 for patterns in self.threat_patterns.values())}")
+        print(f"\n  詳細分類:")
+        
+        for category, patterns in list(self.threat_patterns.items())[:10]:
             pattern_count = len(patterns) if isinstance(patterns, list) else 1
             print(f"    • {category}: {pattern_count} 個規則")
         
         stats = self.get_threat_statistics()
         print(f"\n📈 統計信息:")
-        print(f"  - 總請求數: {stats['total_requests']}")
-        print(f"  - 已阻止: {stats['blocked_requests']}")
-        print(f"  - 已允許: {stats['allowed_requests']}")
-        print(f"  - 異常檢測: {stats['anomalies_detected']}")
+        print(f"  • 總請求數: {stats['total_requests']}")
+        print(f"  • 已阻止: {stats['blocked_requests']}")
+        print(f"  • 已允許: {stats['allowed_requests']}")
+        print(f"  • 異常檢測: {stats['anomalies_detected']}")
         
         if stats['total_requests'] > 0:
-            print(f"  - 阻止率: {stats['block_rate']:.2f}%")
-            print(f"  - 異常率: {stats['anomaly_rate']:.2f}%")
+            print(f"  • 阻止率: {stats.get('block_rate', 'N/A')}")
+            print(f"  • 異常率: {stats.get('anomaly_rate', 'N/A')}")
+        
+        if self.enable_analytics and stats.get('most_detected'):
+            print(f"\n  • 最常檢測威脅: {stats['most_detected']}")
+            print(f"  • 威脅出現次數: {self.threat_analytics.get(stats['most_detected'], 0)}")
         
         print(f"\n🤖 AI 模型:")
-        print(f"  - 已訓練: {'是' if self.trained else '否'}")
-        print(f"  - Contamination: {self.model.contamination}")
-        print("="*60 + "\n")
+        model_stats = self.get_model_stats()
+        print(f"  • 已訓練: {'✅ 是' if self.trained else '❌ 否'}")
+        print(f"  • 估計器數量: {model_stats.get('n_estimators', 'N/A')}")
+        print(f"  • 基線樣本: {model_stats.get('baseline_size', 0)}")
+        print("="*70 + "\n")
 
 
 def demonstrate_enhanced_system():
